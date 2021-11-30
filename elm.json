@@ -4,7 +4,6 @@
     "license": "BSD-3-Clause",
     "summary": "Elm SDK for prismic.io",
     "version": "1.0.0",
-    "repository": "https://github.com/mewhit/elm-prismicio.git",
     "test-dependencies": {},
     "source-directories": [
         "src"
