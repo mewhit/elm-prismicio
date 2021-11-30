@@ -1,15 +1,16 @@
+# Fork from https://github.com/mattjbray/elm-prismicio
+
+Its updated package for elm 0.19.1
 
 # elm-prismicio
 
 An Elm SDK for [Prismic.io](https://prismic.io).
 
-For a complete [example application](https://mattjbray.github.io/elm-prismicio),
 check out the `examples/` directory of this repo.
 
 ## Usage
 
 First, you need to create your types and initialise the Prismic `Model`.
-
 
 ```elm
 import Prismic exposing (Decoder, Document)
@@ -62,7 +63,6 @@ init =
     ( model, fetchHomePage model.prismic )
 ```
 
-
 ### Querying Prismic
 
 To make a Prismic request, you need to do four things:
@@ -87,7 +87,6 @@ fetchHomePage prismic =
         |> Prismic.submit myDocDecoder
         |> Task.attempt SetHomePage
 ```
-
 
 When you handle `SetHomePage` in your app's `update` function, you should
 combine the `prismic` value in your model with the one returned in the tuple.
@@ -119,7 +118,6 @@ update msg model =
 If you have nested components that use Prismic, you'll need to thread the
 Prismic `Model` through your `init` and `update` functions. See the use of the
 `GlobalMsg` type in the `examples/` directory for one way of doing this.
-
 
 ## Example
 
