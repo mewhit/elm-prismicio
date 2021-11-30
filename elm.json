@@ -1,10 +1,10 @@
 {
     "type": "package",
     "name": "mewhit/prismicio",
-    "license": "0BSD",
+    "license": "BSD-3-Clause",
     "summary": "Elm SDK for prismic.io",
     "version": "1.0.0",
-    "repository": "https://github.com/mewhit/elm-prismicio",
+    "repository": "https://github.com/mewhit/elm-prismicio.git",
     "test-dependencies": {},
     "source-directories": [
         "src"
@@ -26,7 +26,7 @@
         "elm/url": "1.0.0 <= v < 2.0.0",
         "justinmimbs/date": "4.0.0 <= v < 5.0.0",
         "elm/bytes": "1.0.8 <= v < 2.0.0",
-        "elm/file": "1.0.4 <= v < 2.0.0",
+        "elm/file": "1.0.4 <= v < 1.0.5",
         "elm/parser": "1.1.0 <= v < 2.0.0",
         "elm/time": "1.0.0 <= v < 2.0.0",
         "elm/virtual-dom": "1.0.2 <= v < 2.0.0"
