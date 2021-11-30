@@ -1,57 +1,23 @@
-module Prismic
-    exposing
-        ( Api
-        , Decoder
-        , Document
-        , Experiments
-        , FieldType
-        , Form
-        , FormField
-        , Model
-        , Options
-        , Predicate
-        , PrismicError(..)
-        , Ref
-        , RefProperties
-        , Request
-        , Response
-        , andThen
-        , any
-        , api
-        , apply
-        , at
-        , atL
-        , bookmark
-        , cache
-        , custom
-        , decode
-        , defaultOptions
-        , fail
-        , form
-        , fulltext
-        , group
-        , groupField
-        , href
-        , id
-        , init
-        , initWith
-        , lang
-        , linkedDocuments
-        , map
-        , optional
-        , optionalField
-        , query
-        , ref
-        , required
-        , requiredField
-        , sliceZone
-        , sliceZoneField
-        , slugs
-        , submit
-        , succeed
-        , tags
-        , uid
-        )
+module Prismic exposing
+    ( init, initWith, Options, defaultOptions
+    , Request, api, form, bookmark
+    , ref, lang, query
+    , submit
+    , Response, cache
+    , Predicate, at, atL, any, fulltext
+    , Model
+    , PrismicError(..)
+    , Api, RefProperties, Ref, Form, FormField, FieldType, Experiments
+    , Decoder
+    , succeed, fail, map, apply, andThen
+    , decode, custom
+    , Document
+    , id, href, linkedDocuments, slugs, tags, uid
+    , requiredField, optionalField
+    , groupField, sliceZoneField
+    , required, optional
+    , group, sliceZone
+    )
 
 {-| An Elm SDK for [Prismic.io](https://prismic.io).
 
@@ -142,8 +108,11 @@ The following combinators can be used with any `Decoder`.
 
 -}
 
+import Debug exposing (toString)
 import Dict exposing (Dict)
-import Http
+import Html exposing (a)
+import Http exposing (Error(..))
+import Http.Extra exposing (jsonResolver)
 import Json.Decode as Json
 import Json.Decode.Pipeline as Json
 import Prismic.Field as Field exposing (Field)
@@ -154,6 +123,7 @@ import Result.Extra as Result
 import String
 import Task exposing (Task)
 import Task.Extra as Task
+import Url.Builder
 
 
 {-| The Prismic Model keeps track of configuration and holds the response cache.
@@ -309,6 +279,7 @@ type alias Response docType =
 
 
 
+-- MAP
 -- DECODERS
 
 
@@ -321,7 +292,7 @@ decodeRef =
 -}
 decodeApi : Json.Decoder Api
 decodeApi =
-    Json.decode Api
+    Json.succeed Api
         |> Json.required "refs" (Json.list decodeRefProperties)
         |> Json.required "bookmarks" (Json.dict Json.string)
         |> Json.required "types" (Json.dict Json.string)
@@ -336,7 +307,7 @@ decodeApi =
 
 decodeRefProperties : Json.Decoder RefProperties
 decodeRefProperties =
-    Json.decode RefProperties
+    Json.succeed RefProperties
         |> Json.required "id" Json.string
         |> Json.required "ref" decodeRef
         |> Json.required "label" Json.string
@@ -345,7 +316,7 @@ decodeRefProperties =
 
 decodeForm : Json.Decoder Form
 decodeForm =
-    Json.decode Form
+    Json.succeed Form
         |> Json.required "method" Json.string
         |> Json.required "enctype" Json.string
         |> Json.required "action" Json.string
@@ -356,7 +327,7 @@ decodeForm =
 
 decodeFormField : Json.Decoder FormField
 decodeFormField =
-    Json.decode FormField
+    Json.succeed FormField
         |> Json.required "type" decodeFieldType
         |> Json.required "multiple" Json.bool
         |> Json.optional "default" (Json.maybe Json.string) Nothing
@@ -381,7 +352,7 @@ decodeFieldType =
 
 decodeExperiments : Json.Decoder Experiments
 decodeExperiments =
-    Json.decode Experiments
+    Json.succeed Experiments
         |> Json.required "draft" (Json.list Json.string)
         |> Json.required "running" (Json.list Json.string)
 
@@ -390,7 +361,7 @@ decodeExperiments =
 -}
 decodeResponse : Json.Decoder (Response Document)
 decodeResponse =
-    Json.decode Response
+    Json.succeed Response
         |> Json.required "license" Json.string
         |> Json.required "next_page" (Json.nullable Json.string)
         |> Json.required "page" Json.int
@@ -470,17 +441,23 @@ You start every Prismic request with this function.
 api : Model -> Task PrismicError ( Model, Api )
 api (Model model) =
     case model.api of
-        Just api ->
-            Task.succeed ( Model model, api )
+        Just api_ ->
+            Task.succeed ( Model model, api_ )
 
         Nothing ->
-            Http.get model.url decodeApi
-                |> Http.toTask
+            Http.task
+                { method = "GET"
+                , headers = []
+                , url = model.url
+                , resolver = jsonResolver decodeApi
+                , body = Http.emptyBody
+                , timeout = Nothing
+                }
                 |> Task.mapError FetchApiError
                 |> Task.map
-                    (\api ->
-                        ( Model { model | api = Just api }
-                        , api
+                    (\api_ ->
+                        ( Model { model | api = Just api_ }
+                        , api_
                         )
                     )
 
@@ -493,13 +470,13 @@ form :
     -> Task PrismicError Request
 form formId apiTask =
     let
-        addForm ( Model model, api ) =
+        addForm ( Model model, api_ ) =
             let
                 mForm =
-                    Dict.get formId api.forms
+                    Dict.get formId api_.forms
 
-                ref =
-                    getRefById model.options.defaultRef api
+                ref_ =
+                    getRefById model.options.defaultRef api_
                         |> Maybe.map .ref
                         |> Maybe.withDefault (Ref model.options.defaultRef)
             in
@@ -507,21 +484,21 @@ form formId apiTask =
                 Nothing ->
                     Task.fail (FormDoesNotExist formId)
 
-                Just form ->
+                Just form_ ->
                     let
                         q =
                             Maybe.withDefault ""
-                                (Dict.get "q" form.fields
+                                (Dict.get "q" form_.fields
                                     |> Maybe.andThen .default
                                 )
                     in
                     Task.succeed
                         (Request
-                            { api = api
+                            { api = api_
                             , model = Model model
                             , config =
-                                { action = form.action
-                                , ref = ref
+                                { action = form_.action
+                                , ref = ref_
                                 , q = q
                                 , lang = ""
                                 }
@@ -540,17 +517,17 @@ bookmark :
 bookmark bookmarkId cacheTask =
     cacheTask
         |> Task.andThen
-            (\( model, api ) ->
+            (\( model, api_ ) ->
                 let
                     mDocId =
-                        Dict.get bookmarkId api.bookmarks
+                        Dict.get bookmarkId api_.bookmarks
                 in
                 case mDocId of
                     Nothing ->
                         Task.fail (BookmarkDoesNotExist bookmarkId)
 
                     Just docId ->
-                        Task.succeed ( model, api )
+                        Task.succeed ( model, api_ )
                             |> form "everything"
                             |> query [ at "document.id" docId ]
             )
@@ -564,14 +541,14 @@ ref :
     -> Task PrismicError Request
 ref refId requestTask =
     let
-        setRef ref (Request request) =
+        setRef ref_ (Request request) =
             let
                 config =
                     request.config
             in
             Request
                 { request
-                    | config = { config | ref = ref.ref }
+                    | config = { config | ref = ref_.ref }
                 }
 
         addRef (Request request) =
@@ -593,21 +570,21 @@ lang :
     String
     -> Task PrismicError Request
     -> Task PrismicError Request
-lang lang requestTask =
+lang lang_ requestTask =
     let
-        setLang lang (Request request) =
+        setLang lang__ (Request request) =
             let
                 config =
                     request.config
             in
             Request
                 { request
-                    | config = { config | lang = lang }
+                    | config = { config | lang = lang_ }
                 }
 
         addLang request =
             request
-                |> setLang lang
+                |> setLang lang_
                 |> Task.succeed
     in
     requestTask |> Task.andThen addLang
@@ -624,14 +601,14 @@ query :
     -> Task PrismicError Request
 query predicates requestTask =
     let
-        setQuery query (Request request) =
+        setQuery query_ (Request request) =
             let
                 config =
                     request.config
             in
             Request
                 { request
-                    | config = { config | q = query }
+                    | config = { config | q = query_ }
                 }
 
         addQuery request =
@@ -655,27 +632,24 @@ submit :
 submit decodeDocType requestTask =
     let
         doSubmit (Request request) =
-            let
-                decodeResponseToUserDocType response =
-                    response.results
-                        |> List.map (Internal.decodeValue decodeDocType)
-                        |> Result.collect
-                        |> Result.map (\docs -> { response | results = docs })
-                        |> Task.fromResult
-                        |> Task.mapError DecodeDocumentError
-            in
             case getFromCache request.config request.model of
                 Just response ->
-                    decodeResponseToUserDocType response
-                        |> Task.map (\response -> ( request.model, response ))
+                    decodeDocTypeToDocument decodeDocType response
+                        |> Task.map (\r -> ( request.model, r ))
 
                 Nothing ->
-                    Http.get (requestToUrl request.config) decodeResponse
-                        |> Http.toTask
+                    Http.task
+                        { method = "GET"
+                        , headers = []
+                        , body = Http.emptyBody
+                        , resolver = jsonResolver decodeResponse
+                        , url = requestToUrl request.config
+                        , timeout = Nothing
+                        }
                         |> Task.mapError SubmitRequestError
                         |> Task.andThen
                             (\origResponse ->
-                                decodeResponseToUserDocType origResponse
+                                decodeDocTypeToDocument decodeDocType origResponse
                                     |> Task.map
                                         (\response ->
                                             ( setInCache request.config origResponse request.model
@@ -685,6 +659,31 @@ submit decodeDocType requestTask =
                             )
     in
     requestTask |> Task.andThen doSubmit
+
+
+mapResponse : Response b -> List a -> Response a
+mapResponse res ls =
+    { license = res.license
+    , nextPage = res.nextPage
+    , page = res.page
+    , prevPage = res.prevPage
+    , results = ls
+    , resultsPerPage = res.resultsPerPage
+    , resultsSize = res.resultsSize
+    , totalPages = res.totalPages
+    , totalResultsSize = res.totalResultsSize
+    , version = res.version
+    }
+
+
+decodeDocTypeToDocument : Decoder Document docType -> Response Document -> Task PrismicError (Response docType)
+decodeDocTypeToDocument a response_ =
+    response_.results
+        |> List.map (Internal.decodeValue a)
+        |> Result.collect
+        |> Result.map (mapResponse response_)
+        |> Task.fromResult
+        |> Task.mapError DecodeDocumentError
 
 
 {-| The `submit` `Task` returns an updated Prismic `Model` with the request and
@@ -758,21 +757,11 @@ fulltext fragment value =
 withQuery : List ( String, String ) -> String -> String
 withQuery params base =
     let
-        sep =
-            if List.isEmpty params then
-                ""
-            else
-                "?"
-
-        joinParamPair ( key, val ) =
-            Http.encodeUri key ++ "=" ++ Http.encodeUri val
-
         paramsPart =
             params
-                |> List.map joinParamPair
-                |> String.join "&"
+                |> List.map (\( key, value ) -> Url.Builder.string key value)
     in
-    base ++ sep ++ paramsPart
+    Url.Builder.crossOrigin base [] paramsPart
 
 
 requestToUrl : RequestConfig -> String
@@ -784,13 +773,14 @@ requestToUrl config =
         ifNotEmpty key val =
             if String.isEmpty val then
                 []
+
             else
                 [ ( key, val ) ]
     in
     config.action
         |> withQuery
             (List.concat
-                [ [( "ref", refStr )]
+                [ [ ( "ref", refStr ) ]
                 , ifNotEmpty "q" config.q
                 , ifNotEmpty "lang" config.lang
                 ]
@@ -798,8 +788,8 @@ requestToUrl config =
 
 
 getRefById : String -> Api -> Maybe RefProperties
-getRefById refId api =
-    api.refs
+getRefById refId api_ =
+    api_.refs
         |> List.filter (\r -> r.id == refId)
         |> List.head
 
@@ -821,7 +811,7 @@ predicatesToStr predicates =
 
         predicateToStr predicate =
             let
-                query =
+                query_ =
                     case predicate of
                         At fragment value ->
                             "at(" ++ fragment ++ ", " ++ wrapQuotes value ++ ")"
@@ -835,7 +825,7 @@ predicatesToStr predicates =
                         FullText fragment value ->
                             "fulltext(" ++ fragment ++ ", " ++ wrapQuotes value ++ ")"
             in
-            "[:d = " ++ query ++ "]"
+            "[:d = " ++ query_ ++ "]"
     in
     "[" ++ String.concat (List.map predicateToStr predicates) ++ "]"
 

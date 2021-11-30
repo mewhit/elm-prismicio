@@ -1,6 +1,7 @@
 module Prismic.Internal exposing (..)
 
 import Date
+import Debug exposing (toString)
 import Dict exposing (Dict)
 import Json.Decode as Json
 import Json.Decode.Pipeline as Json
@@ -315,7 +316,7 @@ optional getKey key fieldDecoder default decoder =
 
 decodeSearchResult : Json.Decoder Document
 decodeSearchResult =
-    Json.decode Document
+    Json.succeed Document
         |> Json.custom decodeDocumentJson
         |> Json.required "href" Json.string
         |> Json.required "id" Json.string
@@ -403,7 +404,7 @@ decodeDate =
     Json.string
         |> Json.andThen
             (\str ->
-                case Date.fromString str of
+                case Date.fromIsoString str of
                     Ok date ->
                         Json.succeed date
 
@@ -416,7 +417,7 @@ decodeDate =
 -}
 decodeDocumentReferenceJson : Json.Decoder DocumentReference
 decodeDocumentReferenceJson =
-    Json.decode DocumentReference
+    Json.succeed DocumentReference
         |> Json.required "id" Json.string
         |> Json.optional "uid" (Json.maybe Json.string) Nothing
         |> Json.required "slug" Json.string
@@ -435,14 +436,14 @@ decodeStructuredText =
 -}
 decodeImageViews : Json.Decoder ImageViews
 decodeImageViews =
-    Json.decode ImageViews
+    Json.succeed ImageViews
         |> Json.required "main" decodeImageView
         |> Json.required "views" (Json.dict decodeImageView)
 
 
 decodeImageView : Json.Decoder ImageView
 decodeImageView =
-    Json.decode ImageView
+    Json.succeed ImageView
         |> Json.required "alt" (Json.nullable Json.string)
         |> Json.required "copyright" (Json.nullable Json.string)
         |> Json.required "url" Json.string
@@ -451,7 +452,7 @@ decodeImageView =
 
 decodeImageDimensions : Json.Decoder ImageDimensions
 decodeImageDimensions =
-    Json.decode ImageDimensions
+    Json.succeed ImageDimensions
         |> Json.required "width" Json.int
         |> Json.required "height" Json.int
 
@@ -490,7 +491,7 @@ decodeStructuredTextBlock =
 
 decodeBlock : Json.Decoder Block
 decodeBlock =
-    Json.decode Block
+    Json.succeed Block
         |> Json.required "text" Json.string
         |> Json.required "spans" (Json.list decodeSpan)
         |> Json.optional "label" (Json.maybe Json.string) Nothing
@@ -498,7 +499,7 @@ decodeBlock =
 
 decodeSpan : Json.Decoder Span
 decodeSpan =
-    Json.decode Span
+    Json.succeed Span
         |> Json.required "start" Json.int
         |> Json.required "end" Json.int
         |> Json.custom decodeSpanType
@@ -545,7 +546,7 @@ decodeEmbed =
 
 decodeEmbedVideo : Json.Decoder EmbedVideo
 decodeEmbedVideo =
-    Json.decode EmbedVideo
+    Json.succeed EmbedVideo
         |> Json.required "author_name" Json.string
         |> Json.required "author_url" Json.string
         |> Json.required "embed_url" Json.string
@@ -563,7 +564,7 @@ decodeEmbedVideo =
 
 decodeEmbedRich : Json.Decoder EmbedRich
 decodeEmbedRich =
-    Json.decode EmbedRich
+    Json.succeed EmbedRich
         |> Json.required "author_name" Json.string
         |> Json.required "author_url" Json.string
         |> Json.required "cache_age" Json.string
@@ -586,12 +587,12 @@ decodeLink =
         decodeOnType typeStr =
             case typeStr of
                 "Link.document" ->
-                    Json.decode DocumentLink
+                    Json.succeed DocumentLink
                         |> Json.requiredAt [ "value", "document" ] decodeDocumentReferenceJson
                         |> Json.requiredAt [ "value", "isBroken" ] Json.bool
 
                 "Link.web" ->
-                    Json.decode WebLink
+                    Json.succeed WebLink
                         |> Json.requiredAt [ "value", "url" ] Json.string
 
                 _ ->
@@ -607,7 +608,7 @@ decodeSliceZone =
 
 decodeSlice : Json.Decoder Slice
 decodeSlice =
-    Json.decode Slice
+    Json.succeed Slice
         |> Json.optional "slice_label" (Json.maybe Json.string) Nothing
         |> Json.required "slice_type" Json.string
         |> Json.custom decodeSliceContent
@@ -622,7 +623,7 @@ decodeSliceContent =
             miniDocument =
                 Json.dict (Json.lazy (\_ -> decodeField))
           in
-          Json.decode SliceContentV2
+          Json.succeed SliceContentV2
             |> Json.required "non-repeat" miniDocument
             |> Json.required "repeat" (Json.list miniDocument)
         ]
